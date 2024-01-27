@@ -1,17 +1,33 @@
 import * as process from 'node:process';
-import { createWriteStream } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
+import { Transform } from 'node:stream';
+import { createInterface } from 'node:readline';
 
 const transform = async () => {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const filename = join(__dirname, 'files', 'fileToWrite.txt');
+  const myTransform = new Transform({
+    writableObjectMode: true,
+    transform(chunk, encoding, callback) {
+      callback(null, chunk.split('').reverse().join(''));
+    },
+  });
 
-  const writeStream = createWriteStream(filename);
+  myTransform.on('data', (chunk) => console.log('Reverse text: ' + chunk));
 
-  process.stdin.pipe(writeStream);
-  writeStream.on('open', () => console.log(`Send text to fileToWrite:`));
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: 'Enter text: ',
+  });
+
+  rl.on('line', (line) => {
+    myTransform.write(line);
+    rl.prompt();
+  });
+
+  rl.on('close', () => {
+    myTransform.end();
+  });
+
+  rl.prompt();
 };
 
 await transform();
